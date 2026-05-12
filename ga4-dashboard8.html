@@ -391,7 +391,7 @@ async function loadData() {
       ga4({dateRanges:dr,dimensions:[{name:'userAgeBracket'}],metrics:[{name:'activeUsers'},{name:'sessions'},{name:'engagementRate'},{name:'averageSessionDuration'}],orderBys:[{dimension:{dimensionName:'userAgeBracket'}}]}),
       ga4({dateRanges:dp,dimensions:[{name:'userAgeBracket'}],metrics:[{name:'activeUsers'}],orderBys:[{dimension:{dimensionName:'userAgeBracket'}}]}),
       ga4({dateRanges:dr,dimensions:[{name:'userGender'}],metrics:[{name:'activeUsers'},{name:'sessions'}]}),
-      ga4({dateRanges:dr,dimensions:[{name:'interestCategory'}],metrics:[{name:'activeUsers'},{name:'sessions'}],orderBys:[{metric:{metricName:'activeUsers'},desc:true}],limit:15}),
+      Promise.resolve({rows:[]}),
     ]);
 
     setMsg('Rendu des graphiques...');
