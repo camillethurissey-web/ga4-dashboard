@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chapon.com — Analyse GA4</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap');
+  :root {
+    --bg:#0a0a0f;--surface:#13131a;--surface2:#1c1c26;--border:#2a2a38;
+    --accent:#6c63ff;--accent2:#ff6584;--accent3:#43e97b;
+    --text:#e8e8f0;--text-muted:#6b6b85;--text-dim:#9898b0;
+    --up:#43e97b;--down:#ff6584;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-height:100vh;}
+
+  #auth-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:2rem;text-align:center;background:radial-gradient(ellipse at 50% 0%,#1a1030 0%,var(--bg) 70%);}
+  .logo{font-family:'DM Serif Display',serif;font-size:2.8rem;letter-spacing:-0.02em;margin-bottom:0.25rem;background:linear-gradient(135deg,#fff 0%,var(--accent) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+  .logo-sub{font-size:0.75rem;color:var(--text-muted);letter-spacing:0.15em;text-transform:uppercase;margin-bottom:3rem;}
+  .auth-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2.5rem;max-width:420px;width:100%;}
+  .auth-card h2{font-family:'DM Serif Display',serif;font-size:1.5rem;margin-bottom:0.75rem;font-weight:400;}
+  .auth-card p{font-size:0.8rem;color:var(--text-dim);line-height:1.6;margin-bottom:2rem;}
+  .input-group{margin-bottom:1rem;}
+  .input-group label{display:block;font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.4rem;}
+  .input-group input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.75rem 1rem;color:var(--text);font-family:'DM Mono',monospace;font-size:0.82rem;outline:none;transition:border-color 0.2s;}
+  .input-group input:focus{border-color:var(--accent);}
+  .btn-primary{width:100%;background:var(--accent);color:white;border:none;border-radius:8px;padding:0.85rem;font-family:'DM Mono',monospace;font-size:0.85rem;font-weight:500;cursor:pointer;transition:opacity 0.2s,transform 0.1s;margin-top:0.5rem;}
+  .btn-primary:hover{opacity:0.85;transform:translateY(-1px);}
+  .hint{font-size:0.72rem;color:var(--text-muted);margin-top:1rem;line-height:1.5;}
+  .error-msg{background:#2a1515;border:1px solid #5a2020;border-radius:8px;padding:1rem 1.25rem;font-size:0.8rem;color:#ff8080;margin-top:1rem;}
+
+  #loading-screen{display:none;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:1rem;}
+  .spinner{width:40px;height:40px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loading-text{font-size:0.8rem;color:var(--text-muted);animation:pulse 1.5s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:0.4}50%{opacity:1}}
+
+  #dashboard{display:none;padding:2rem;max-width:1600px;margin:0 auto;}
+  .dash-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem;}
+  .dash-title{font-family:'DM Serif Display',serif;font-size:1.8rem;font-weight:400;}
+  .dash-title span{color:var(--accent);}
+  .controls{display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;}
+  select{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:0.4rem 0.8rem;color:var(--text);font-family:'DM Mono',monospace;font-size:0.75rem;outline:none;cursor:pointer;}
+  .btn-sm{background:var(--surface2);color:var(--text-dim);border:1px solid var(--border);border-radius:6px;padding:0.4rem 0.9rem;font-family:'DM Mono',monospace;font-size:0.75rem;cursor:pointer;transition:all 0.2s;}
+  .btn-sm:hover{border-color:var(--accent);color:var(--accent);}
+
+  .tabs{display:flex;gap:0;margin-bottom:1.5rem;border-bottom:1px solid var(--border);overflow-x:auto;}
+  .tab{padding:0.65rem 1.25rem;font-size:0.72rem;cursor:pointer;color:var(--text-muted);border-bottom:2px solid transparent;transition:all 0.2s;text-transform:uppercase;letter-spacing:0.08em;white-space:nowrap;}
+  .tab:hover{color:var(--text);}
+  .tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+  .tab-content{display:none;}
+  .tab-content.active{display:block;}
+
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:1rem;margin-bottom:1.5rem;}
+  .kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem;position:relative;overflow:hidden;transition:border-color 0.2s;}
+  .kpi-card:hover{border-color:var(--accent);}
+  .kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+  .kpi-card:nth-child(1)::before{background:var(--accent)}.kpi-card:nth-child(2)::before{background:var(--accent2)}.kpi-card:nth-child(3)::before{background:var(--accent3)}.kpi-card:nth-child(4)::before{background:#ffd166}.kpi-card:nth-child(5)::before{background:#06d6a0}.kpi-card:nth-child(6)::before{background:#118ab2}.kpi-card:nth-child(7)::before{background:#ef476f}.kpi-card:nth-child(8)::before{background:#f77f00}
+  .kpi-label{font-size:0.63rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.35rem;}
+  .kpi-value{font-family:'DM Serif Display',serif;font-size:1.7rem;font-weight:400;line-height:1;margin-bottom:0.3rem;}
+  .kpi-vs{font-size:0.68rem;}
+  .up{color:var(--up);}.down{color:var(--down);}.neutral{color:var(--text-muted);}
+
+  .g2{display:grid;grid-template-columns:2fr 1fr;gap:1rem;margin-bottom:1rem;}
+  .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1rem;}
+  .g2e{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;}
+  .card-title{font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-dim);margin-bottom:1.1rem;}
+  canvas{max-height:230px;}
+
+  .tbl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin-bottom:1rem;overflow-x:auto;}
+  table{width:100%;border-collapse:collapse;font-size:0.77rem;}
+  thead th{text-align:left;padding:0.45rem 0.7rem;color:var(--text-muted);font-size:0.62rem;text-transform:uppercase;letter-spacing:0.08em;border-bottom:1px solid var(--border);}
+  tbody tr{border-bottom:1px solid var(--border);transition:background 0.15s;}
+  tbody tr:last-child{border-bottom:none;}
+  tbody tr:hover{background:var(--surface2);}
+  tbody td{padding:0.55rem 0.7rem;color:var(--text-dim);}
+  tbody td:first-child{color:var(--text);}
+  .bar-w{display:flex;align-items:center;gap:0.4rem;}
+  .mbar{height:3px;background:var(--accent);border-radius:2px;opacity:0.7;min-width:2px;}
+  .chip{display:inline-block;padding:0.12rem 0.45rem;border-radius:4px;font-size:0.62rem;}
+  .chip-up{background:rgba(67,233,123,0.12);color:var(--up);}
+  .chip-dn{background:rgba(255,101,132,0.12);color:var(--down);}
+  .chip-n{background:rgba(152,152,176,0.08);color:var(--text-muted);}
+
+  @media(max-width:900px){.g2,.g3,.g2e{grid-template-columns:1fr}#dashboard{padding:1rem}}
+</style>
+</head>
+<body>
+
+<div id="auth-screen">
+  <div class="logo">chapon.com</div>
+  <div class="logo-sub">Tableau de bord Analytics</div>
+  <div class="auth-card">
+    <h2>Connexion GA4</h2>
+    <p>Connectez-vous avec Google pour accéder à vos données Analytics en lecture seule.</p>
+    <div class="input-group">
+      <label>Client ID OAuth2</label>
+      <input type="text" id="client-id-input" placeholder="xxxxx.apps.googleusercontent.com"/>
+    </div>
+    <div id="error-display"></div>
+    <button class="btn-primary" onclick="startOAuth()">Se connecter avec Google</button>
+    <div class="hint">Accès sécurisé en lecture seule — vos données ne quittent pas votre navigateur.</div>
+  </div>
+</div>
+
+<div id="loading-screen">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loading-msg">Chargement des données...</div>
+</div>
+
+<div id="dashboard">
+  <div class="dash-header">
+    <div>
+      <div class="dash-title">Analytics <span>chapon.com</span></div>
+      <div style="font-size:0.68rem;color:var(--text-muted);margin-top:0.2rem">GA4 · 344378392 · <span id="date-range">—</span> · vs <span id="prev-range">—</span></div>
+    </div>
+    <div class="controls">
+      <select id="period-select" onchange="loadData()">
+        <option value="7">7 jours</option>
+        <option value="28" selected>28 jours</option>
+        <option value="90">90 jours</option>
+        <option value="180">6 mois</option>
+        <option value="365">1 an</option>
+      </select>
+      <button class="btn-sm" onclick="loadData()">↻ Actualiser</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('overview')">Vue d'ensemble</div>
+    <div class="tab" onclick="switchTab('acquisition')">Acquisition</div>
+    <div class="tab" onclick="switchTab('behavior')">Comportement</div>
+    <div class="tab" onclick="switchTab('audience')">Audience</div>
+    <div class="tab" onclick="switchTab('cohorts')">Cohortes & Rétention</div>
+  </div>
+
+  <!-- OVERVIEW -->
+  <div id="tab-overview" class="tab-content active">
+    <div class="kpi-grid" id="kpi-grid"></div>
+    <div class="g2">
+      <div class="card">
+        <div class="card-title">Sessions — période actuelle vs précédente</div>
+        <canvas id="lineChart"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-title">Canaux d'acquisition</div>
+        <canvas id="channelDoughnut"></canvas>
+      </div>
+    </div>
+    <div class="g2e">
+      <div class="card">
+        <div class="card-title">Appareils</div>
+        <canvas id="deviceChart"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-title">Sessions par jour de la semaine</div>
+        <canvas id="weekdayChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ACQUISITION -->
+  <div id="tab-acquisition" class="tab-content">
+    <div class="g2e">
+      <div class="card">
+        <div class="card-title">Canaux — actuel vs période précédente</div>
+        <canvas id="channelBarChart"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-title">Sources de trafic (sessions)</div>
+        <canvas id="sourceChart"></canvas>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <div class="card-title" style="margin-bottom:1rem">Sources / Médiums détaillés</div>
+      <table><thead><tr><th>Source / Médium</th><th>Sessions</th><th>Utilisateurs</th><th>Nouveaux</th><th>Taux rebond</th><th>Durée moy.</th></tr></thead>
+      <tbody id="source-table"></tbody></table>
+    </div>
+    <div class="tbl-wrap">
+      <div class="card-title" style="margin-bottom:1rem">Pages d'atterrissage (Landing Pages)</div>
+      <table><thead><tr><th>Page</th><th>Sessions</th><th>Nouveaux</th><th>Taux engagement</th><th>Répartition</th></tr></thead>
+      <tbody id="landing-table"></tbody></table>
+    </div>
+  </div>
+
+  <!-- BEHAVIOR -->
+  <div id="tab-behavior" class="tab-content">
+    <div class="g2e">
+      <div class="card">
+        <div class="card-title">Sessions — évolution quotidienne</div>
+        <canvas id="sessionsBarChart"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-title">Pages vues vs Utilisateurs actifs</div>
+        <canvas id="pvUsersChart"></canvas>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <div class="card-title" style="margin-bottom:1rem">Top pages — performance complète</div>
+      <table><thead><tr><th>Page</th><th>Vues</th><th>Utilisateurs</th><th>Entrées</th><th>Taux engagement</th><th>Temps moyen</th><th>%</th></tr></thead>
+      <tbody id="pages-table"></tbody></table>
+    </div>
+    <div class="tbl-wrap">
+      <div class="card-title" style="margin-bottom:1rem">Pages de sortie</div>
+      <table><thead><tr><th>Page</th><th>Sorties</th><th>Vues</th><th>Taux de sortie</th></tr></thead>
+      <tbody id="exit-table"></tbody></table>
+    </div>
+  </div>
+
+  <!-- AUDIENCE -->
+  <div id="tab-audience" class="tab-content">
+    <div class="g3">
+      <div class="card">
+        <div class="card-title">Appareils</div>
+        <canvas id="deviceChart2"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-title">Nouveaux vs Récurrents</div>
+        <canvas id="newVsReturnChart"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-title">Navigateurs</div>
+        <canvas id="browserChart"></canvas>
+      </div>
+    </div>
+    <div class="g2e">
+      <div class="tbl-wrap" style="margin-bottom:0">
+        <div class="card-title" style="margin-bottom:1rem">Pays — Top 15</div>
+        <table><thead><tr><th>Pays</th><th>Utilisateurs</th><th>Sessions</th><th>Rebond</th><th>%</th></tr></thead>
+        <tbody id="country-table"></tbody></table>
+      </div>
+      <div class="tbl-wrap" style="margin-bottom:0">
+        <div class="card-title" style="margin-bottom:1rem">Villes — Top 15</div>
+        <table><thead><tr><th>Ville</th><th>Utilisateurs</th><th>Sessions</th><th>%</th></tr></thead>
+        <tbody id="city-table"></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- COHORTS -->
+  <div id="tab-cohorts" class="tab-content">
+    <div class="g2e">
+      <div class="card">
+        <div class="card-title">Nouveaux utilisateurs — tendance hebdomadaire</div>
+        <canvas id="newUsersWeekly"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-title">Nouveaux vs Récurrents — évolution</div>
+        <canvas id="retentionTrend"></canvas>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <div class="card-title" style="margin-bottom:0.5rem">Analyse de rétention hebdomadaire</div>
+      <div style="font-size:0.72rem;color:var(--text-muted);margin-bottom:1rem">Chaque ligne = cohorte d'une semaine. Les colonnes = % d'utilisateurs revenus les semaines suivantes.</div>
+      <div id="cohort-container"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const PROPERTY_ID = '344378392';
+const CLIENT_ID = '557509038970-if2q14ccnv5k1t6f12k9euc7l16d26i4.apps.googleusercontent.com';
+let token = null, charts = {};
+
+function startOAuth() {
+  const id = document.getElementById('client-id-input').value.trim();
+  if (!id) { showErr('Veuillez entrer votre Client ID.'); return; }
+  localStorage.setItem('ga4_cid', id);
+  const p = new URLSearchParams({client_id:id,redirect_uri:location.href.split('?')[0].split('#')[0],response_type:'token',scope:'https://www.googleapis.com/auth/analytics.readonly',include_granted_scopes:'true'});
+  location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + p;
+}
+
+function checkCallback() {
+  if (location.hash.includes('access_token')) {
+    token = new URLSearchParams(location.hash.slice(1)).get('access_token');
+    history.replaceState(null,'',location.pathname);
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('loading-screen').style.display = 'flex';
+    loadData();
+  }
+}
+
+function showErr(m) { document.getElementById('error-display').innerHTML=`<div class="error-msg">${m}</div>`; }
+function setMsg(m) { document.getElementById('loading-msg').textContent=m; }
+
+function switchTab(name) {
+  const names=['overview','acquisition','behavior','audience','cohorts'];
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',names[i]===name));
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+}
+
+async function ga4(body) {
+  const r = await fetch(`https://analyticsdata.googleapis.com/v1beta/properties/${PROPERTY_ID}:runReport`,{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+function getDates() {
+  const days = parseInt(document.getElementById('period-select').value);
+  const end = new Date(); end.setDate(end.getDate()-1);
+  const start = new Date(end); start.setDate(end.getDate()-days+1);
+  const pEnd = new Date(start); pEnd.setDate(start.getDate()-1);
+  const pStart = new Date(pEnd); pStart.setDate(pEnd.getDate()-days+1);
+  const f = d => d.toISOString().split('T')[0];
+  document.getElementById('date-range').textContent = f(start)+' → '+f(end);
+  document.getElementById('prev-range').textContent = f(pStart)+' → '+f(pEnd);
+  return {s:f(start),e:f(end),ps:f(pStart),pe:f(pEnd)};
+}
+
+async function loadData() {
+  if (!token) return;
+  document.getElementById('loading-screen').style.display='flex';
+  document.getElementById('dashboard').style.display='none';
+  const D = getDates();
+  const dr = [{startDate:D.s,endDate:D.e}];
+  const dp = [{startDate:D.ps,endDate:D.pe}];
+
+  try {
+    setMsg('Chargement des métriques principales...');
+    const [kpiC,kpiP,timeline,timelineP,channels,channelsP,devices,sources,landing,pages,exits,countries,cities,browsers,nvr,weekday,weekly] = await Promise.all([
+      ga4({dateRanges:dr,metrics:[{name:'sessions'},{name:'activeUsers'},{name:'newUsers'},{name:'bounceRate'},{name:'averageSessionDuration'},{name:'screenPageViews'},{name:'engagementRate'},{name:'sessionsPerUser'}]}),
+      ga4({dateRanges:dp,metrics:[{name:'sessions'},{name:'activeUsers'},{name:'newUsers'},{name:'bounceRate'},{name:'averageSessionDuration'},{name:'screenPageViews'},{name:'engagementRate'},{name:'sessionsPerUser'}]}),
+      ga4({dateRanges:dr,dimensions:[{name:'date'}],metrics:[{name:'sessions'},{name:'activeUsers'},{name:'screenPageViews'}],orderBys:[{dimension:{dimensionName:'date'}}]}),
+      ga4({dateRanges:dp,dimensions:[{name:'date'}],metrics:[{name:'sessions'}],orderBys:[{dimension:{dimensionName:'date'}}]}),
+      ga4({dateRanges:dr,dimensions:[{name:'sessionDefaultChannelGroup'}],metrics:[{name:'sessions'},{name:'activeUsers'}],orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:8}),
+      ga4({dateRanges:dp,dimensions:[{name:'sessionDefaultChannelGroup'}],metrics:[{name:'sessions'}],orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:8}),
+      ga4({dateRanges:dr,dimensions:[{name:'deviceCategory'}],metrics:[{name:'sessions'},{name:'activeUsers'}]}),
+      ga4({dateRanges:dr,dimensions:[{name:'sessionSource'},{name:'sessionMedium'}],metrics:[{name:'sessions'},{name:'activeUsers'},{name:'newUsers'},{name:'bounceRate'},{name:'averageSessionDuration'}],orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:20}),
+      ga4({dateRanges:dr,dimensions:[{name:'landingPage'}],metrics:[{name:'sessions'},{name:'newUsers'},{name:'engagementRate'}],orderBys:[{metric:{metricName:'sessions'},desc:true}],limit:15}),
+      ga4({dateRanges:dr,dimensions:[{name:'pagePath'}],metrics:[{name:'screenPageViews'},{name:'activeUsers'},{name:'entrances'},{name:'engagementRate'},{name:'averageSessionDuration'}],orderBys:[{metric:{metricName:'screenPageViews'},desc:true}],limit:20}),
+      ga4({dateRanges:dr,dimensions:[{name:'pagePath'}],metrics:[{name:'exits'},{name:'screenPageViews'}],orderBys:[{metric:{metricName:'exits'},desc:true}],limit:15}),
+      ga4({dateRanges:dr,dimensions:[{name:'country'}],metrics:[{name:'activeUsers'},{name:'sessions'},{name:'bounceRate'}],orderBys:[{metric:{metricName:'activeUsers'},desc:true}],limit:15}),
+      ga4({dateRanges:dr,dimensions:[{name:'city'}],metrics:[{name:'activeUsers'},{name:'sessions'}],orderBys:[{metric:{metricName:'activeUsers'},desc:true}],limit:15}),
+      ga4({dateRanges:dr,dimensions:[{name:'browser'}],metrics:[{name:'activeUsers'}],orderBys:[{metric:{metricName:'activeUsers'},desc:true}],limit:6}),
+      ga4({dateRanges:dr,dimensions:[{name:'newVsReturning'}],metrics:[{name:'activeUsers'},{name:'sessions'}]}),
+      ga4({dateRanges:dr,dimensions:[{name:'dayOfWeek'}],metrics:[{name:'sessions'}],orderBys:[{dimension:{dimensionName:'dayOfWeek'}}]}),
+      ga4({dateRanges:dr,dimensions:[{name:'isoWeek'}],metrics:[{name:'newUsers'},{name:'activeUsers'}],orderBys:[{dimension:{dimensionName:'isoWeek'}}],limit:26}),
+    ]);
+
+    setMsg('Rendu des graphiques...');
+    renderKPIs(kpiC,kpiP);
+    renderTimeline(timeline,timelineP);
+    renderDoughnut('channelDoughnut',channels);
+    renderDoughnut('deviceChart',devices,['#6c63ff','#ff6584','#43e97b']);
+    renderDoughnut('deviceChart2',devices,['#6c63ff','#ff6584','#43e97b']);
+    renderDoughnut('newVsReturnChart',nvr,['#6c63ff','#ffd166']);
+    renderWeekday(weekday);
+    renderChannelBar(channels,channelsP);
+    renderSourceDoughnut(sources);
+    renderTimeSeries(timeline);
+    renderPVUsers(timeline);
+    renderBrowsers(browsers);
+    renderWeeklyUsers(weekly);
+    renderRetentionTrend(weekly);
+    renderCohortTable(weekly);
+    renderSrcTable(sources);
+    renderLandingTable(landing);
+    renderPagesTable(pages);
+    renderExitTable(exits);
+    renderCountryTable(countries);
+    renderCityTable(cities);
+
+    document.getElementById('loading-screen').style.display='none';
+    document.getElementById('dashboard').style.display='block';
+  } catch(e) {
+    document.getElementById('loading-screen').style.display='none';
+    document.getElementById('auth-screen').style.display='flex';
+    showErr('Erreur : '+e.message.slice(0,300));
+  }
+}
+
+const V=(r,i)=>r?.metricValues?.[i]?.value||'0';
+const DV=(r,i)=>r?.dimensionValues?.[i]?.value||'—';
+const fN=n=>parseInt(n).toLocaleString('fr');
+const fP=n=>(parseFloat(n)*100).toFixed(1)+'%';
+const fD=s=>{s=parseInt(s);return Math.floor(s/60)+'m'+(s%60).toString().padStart(2,'0')+'s';};
+const CLR=['#6c63ff','#ff6584','#43e97b','#ffd166','#06d6a0','#118ab2','#ef476f','#f77f00','#4cc9f0','#7209b7'];
+
+function pct(cur,prev){
+  const c=parseFloat(cur),p=parseFloat(prev);
+  if(!p||isNaN(c)||isNaN(p)) return {t:'—',cls:'neutral'};
+  const d=(c-p)/p*100;
+  return {t:(d>0?'+':'')+d.toFixed(1)+'%',cls:d>2?'up':d<-2?'down':'neutral'};
+}
+
+function mkC(id,type,data,opts={}){
+  if(charts[id]) charts[id].destroy();
+  charts[id]=new Chart(document.getElementById(id),{type,data,options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{labels:{color:'#9898b0',font:{family:'DM Mono',size:10},boxWidth:10,padding:8}}},...(type==='doughnut'||type==='pie'?{}:{scales:{x:{ticks:{color:'#6b6b85',font:{family:'DM Mono',size:10},maxTicksLimit:10},grid:{color:'#1c1c26'}},y:{ticks:{color:'#6b6b85',font:{family:'DM Mono',size:10}},grid:{color:'#1c1c26'}}}}),...opts}});
+}
+
+function renderKPIs(cur,prev){
+  const r=cur.rows?.[0],p=prev.rows?.[0];
+  if(!r) return;
+  const kpis=[
+    {l:'Sessions',v:fN(V(r,0)),c:V(r,0),pc:p?V(p,0):'0'},
+    {l:'Utilisateurs actifs',v:fN(V(r,1)),c:V(r,1),pc:p?V(p,1):'0'},
+    {l:'Nouveaux utilisateurs',v:fN(V(r,2)),c:V(r,2),pc:p?V(p,2):'0'},
+    {l:'Pages vues',v:fN(V(r,5)),c:V(r,5),pc:p?V(p,5):'0'},
+    {l:'Durée moy. session',v:fD(V(r,4)),c:V(r,4),pc:p?V(p,4):'0'},
+    {l:'Taux de rebond',v:fP(V(r,3)),c:V(r,3),pc:p?V(p,3):'0',inv:true},
+    {l:"Taux d'engagement",v:fP(V(r,6)),c:V(r,6),pc:p?V(p,6):'0'},
+    {l:'Sessions / utilisateur',v:parseFloat(V(r,7)).toFixed(2),c:V(r,7),pc:p?V(p,7):'0'},
+  ];
+  document.getElementById('kpi-grid').innerHTML=kpis.map(k=>{
+    const d=pct(k.c,k.pc);
+    const cls=k.inv?(d.cls==='up'?'down':d.cls==='down'?'up':d.cls):d.cls;
+    return `<div class="kpi-card"><div class="kpi-label">${k.l}</div><div class="kpi-value">${k.v}</div><div class="kpi-vs ${cls}">${d.t} vs période préc.</div></div>`;
+  }).join('');
+}
+
+function renderTimeline(cur,prev){
+  const labels=cur.rows?.map(r=>{const s=DV(r,0);return s.slice(6,8)+'/'+s.slice(4,6);})||[];
+  const s1=cur.rows?.map(r=>parseInt(V(r,0)))||[];
+  const u1=cur.rows?.map(r=>parseInt(V(r,1)))||[];
+  const s2=prev.rows?.map(r=>parseInt(V(r,0)))||[];
+  mkC('lineChart','line',{labels,datasets:[
+    {label:'Sessions',data:s1,borderColor:'#6c63ff',backgroundColor:'rgba(108,99,255,0.08)',tension:0.4,fill:true,pointRadius:0,borderWidth:2},
+    {label:'Utilisateurs',data:u1,borderColor:'#ff6584',backgroundColor:'rgba(255,101,132,0.05)',tension:0.4,fill:false,pointRadius:0,borderWidth:1.5},
+    {label:'Sessions N-1',data:s2,borderColor:'#3a3a5a',backgroundColor:'transparent',tension:0.4,fill:false,pointRadius:0,borderWidth:1.5,borderDash:[5,4]},
+  ]});
+}
+
+function renderTimeSeries(timeline){
+  const labels=timeline.rows?.map(r=>{const s=DV(r,0);return s.slice(6,8)+'/'+s.slice(4,6);})||[];
+  const s=timeline.rows?.map(r=>parseInt(V(r,0)))||[];
+  mkC('sessionsBarChart','bar',{labels,datasets:[{label:'Sessions',data:s,backgroundColor:'rgba(108,99,255,0.6)',borderRadius:3}]},{plugins:{legend:{display:false}}});
+}
+
+function renderPVUsers(timeline){
+  const labels=timeline.rows?.map(r=>{const s=DV(r,0);return s.slice(6,8)+'/'+s.slice(4,6);})||[];
+  const pv=timeline.rows?.map(r=>parseInt(V(r,2)))||[];
+  const u=timeline.rows?.map(r=>parseInt(V(r,1)))||[];
+  mkC('pvUsersChart','line',{labels,datasets:[
+    {label:'Pages vues',data:pv,borderColor:'#ffd166',backgroundColor:'rgba(255,209,102,0.08)',tension:0.4,fill:true,pointRadius:0,yAxisID:'y'},
+    {label:'Utilisateurs',data:u,borderColor:'#43e97b',backgroundColor:'transparent',tension:0.4,fill:false,pointRadius:0,yAxisID:'y1'},
+  ]},{scales:{x:{ticks:{color:'#6b6b85',font:{family:'DM Mono',size:10},maxTicksLimit:10},grid:{color:'#1c1c26'}},y:{ticks:{color:'#6b6b85',font:{family:'DM Mono',size:10}},grid:{color:'#1c1c26'}},y1:{position:'right',ticks:{color:'#6b6b85',font:{family:'DM Mono',size:10}},grid:{display:false}}}});
+}
+
+function renderDoughnut(id,data,clrs){
+  const labels=data.rows?.map(r=>DV(r,0))||[];
+  const vals=data.rows?.map(r=>parseInt(V(r,0)))||[];
+  mkC(id,'doughnut',{labels,datasets:[{data:vals,backgroundColor:clrs||CLR,borderWidth:0}]});
+}
+
+function renderChannelBar(cur,prev){
+  const labels=cur.rows?.map(r=>DV(r,0))||[];
+  const vals=cur.rows?.map(r=>parseInt(V(r,0)))||[];
+  const pm={}; prev.rows?.forEach(r=>{pm[DV(r,0)]=parseInt(V(r,0));});
+  const pv=labels.map(l=>pm[l]||0);
+  mkC('channelBarChart','bar',{labels,datasets:[
+    {label:'Actuel',data:vals,backgroundColor:'rgba(108,99,255,0.75)',borderRadius:4},
+    {label:'Période préc.',data:pv,backgroundColor:'rgba(108,99,255,0.2)',borderRadius:4},
+  ]},{indexAxis:'y'});
+}
+
+function renderSourceDoughnut(data){
+  const labels=data.rows?.slice(0,6).map(r=>DV(r,0)+'/'+DV(r,1))||[];
+  const vals=data.rows?.slice(0,6).map(r=>parseInt(V(r,0)))||[];
+  mkC('sourceChart','doughnut',{labels,datasets:[{data:vals,backgroundColor:CLR,borderWidth:0}]});
+}
+
+function renderWeekday(data){
+  const days=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+  const m={}; data.rows?.forEach(r=>{m[DV(r,0)]=parseInt(V(r,0));});
+  const vals=[0,1,2,3,4,5,6].map(i=>m[i]||0);
+  mkC('weekdayChart','bar',{labels:days,datasets:[{data:vals,backgroundColor:vals.map((_,i)=>i>=1&&i<=5?'rgba(108,99,255,0.7)':'rgba(255,101,132,0.6)'),borderRadius:4}]},{plugins:{legend:{display:false}}});
+}
+
+function renderBrowsers(data){
+  const labels=data.rows?.map(r=>DV(r,0))||[];
+  const vals=data.rows?.map(r=>parseInt(V(r,0)))||[];
+  mkC('browserChart','bar',{labels,datasets:[{data:vals,backgroundColor:CLR,borderRadius:4}]},{plugins:{legend:{display:false}},indexAxis:'y'});
+}
+
+function renderWeeklyUsers(data){
+  const labels=data.rows?.map(r=>DV(r,0))||[];
+  const nu=data.rows?.map(r=>parseInt(V(r,0)))||[];
+  mkC('newUsersWeekly','line',{labels,datasets:[{label:'Nouveaux',data:nu,borderColor:'#43e97b',backgroundColor:'rgba(67,233,123,0.1)',tension:0.4,fill:true,pointRadius:2,borderWidth:2}]},{plugins:{legend:{display:false}}});
+}
+
+function renderRetentionTrend(data){
+  const labels=data.rows?.map(r=>DV(r,0))||[];
+  const nu=data.rows?.map(r=>parseInt(V(r,0)))||[];
+  const au=data.rows?.map(r=>parseInt(V(r,1)))||[];
+  const ret=au.map((a,i)=>Math.max(0,a-nu[i]));
+  mkC('retentionTrend','bar',{labels,datasets:[
+    {label:'Nouveaux',data:nu,backgroundColor:'rgba(108,99,255,0.7)',borderRadius:3},
+    {label:'Récurrents (estimé)',data:ret,backgroundColor:'rgba(255,209,102,0.7)',borderRadius:3},
+  ]},{scales:{x:{stacked:true,ticks:{color:'#6b6b85',font:{family:'DM Mono',size:10},maxTicksLimit:10},grid:{color:'#1c1c26'}},y:{stacked:true,ticks:{color:'#6b6b85',font:{family:'DM Mono',size:10}},grid:{color:'#1c1c26'}}}});
+}
+
+function renderCohortTable(data){
+  const rows=data.rows||[];
+  if(!rows.length){document.getElementById('cohort-container').innerHTML='<div style="font-size:0.75rem;color:var(--text-muted);padding:1rem">Pas assez de données pour afficher les cohortes.</div>';return;}
+  const maxNew=Math.max(...rows.map(r=>parseInt(V(r,0))));
+  let html=`<table style="min-width:100%"><thead><tr><th>Semaine</th><th>Nouveaux</th><th>Total actifs</th><th>% récurrents (estimé)</th><th>Tendance</th></tr></thead><tbody>`;
+  rows.forEach(r=>{
+    const wk=DV(r,0),nu=parseInt(V(r,0)),au=parseInt(V(r,1));
+    const retPct=nu?Math.max(0,((au-nu)/au*100)).toFixed(1):0;
+    const bar=Math.round(nu/maxNew*100);
+    html+=`<tr><td>${wk}</td><td>${fN(nu)}</td><td>${fN(au)}</td><td>${retPct}%</td><td><div class="bar-w"><div class="mbar" style="width:${Math.max(bar,2)}px;max-width:120px"></div></div></td></tr>`;
+  });
+  html+='</tbody></table>';
+  document.getElementById('cohort-container').innerHTML=html;
+}
+
+function renderSrcTable(data){
+  document.getElementById('source-table').innerHTML=data.rows?.map(r=>`<tr>
+    <td>${DV(r,0)} / ${DV(r,1)}</td>
+    <td>${fN(V(r,0))}</td><td>${fN(V(r,1))}</td><td>${fN(V(r,2))}</td>
+    <td>${(parseFloat(V(r,3))*100).toFixed(1)}%</td><td>${fD(V(r,4))}</td>
+  </tr>`).join('')||'';
+}
+
+function renderLandingTable(data){
+  const mx=data.rows?.length?parseInt(V(data.rows[0],0)):1;
+  document.getElementById('landing-table').innerHTML=data.rows?.map(r=>{
+    const p=DV(r,0).length>55?DV(r,0).slice(0,55)+'…':DV(r,0);
+    const b=Math.round(parseInt(V(r,0))/mx*100);
+    return `<tr><td>${p}</td><td>${fN(V(r,0))}</td><td>${fN(V(r,1))}</td><td>${(parseFloat(V(r,2))*100).toFixed(1)}%</td><td><div class="bar-w"><div class="mbar" style="width:${Math.max(b,2)}px;max-width:100px"></div></div></td></tr>`;
+  }).join('')||'';
+}
+
+function renderPagesTable(data){
+  const mx=data.rows?.length?parseInt(V(data.rows[0],0)):1;
+  document.getElementById('pages-table').innerHTML=data.rows?.map(r=>{
+    const p=DV(r,0).length>45?DV(r,0).slice(0,45)+'…':DV(r,0);
+    const b=Math.round(parseInt(V(r,0))/mx*100);
+    return `<tr><td>${p}</td><td>${fN(V(r,0))}</td><td>${fN(V(r,1))}</td><td>${fN(V(r,2))}</td><td>${(parseFloat(V(r,3))*100).toFixed(1)}%</td><td>${fD(V(r,4))}</td><td><div class="bar-w"><div class="mbar" style="width:${Math.max(b,2)}px;max-width:80px"></div></div></td></tr>`;
+  }).join('')||'';
+}
+
+function renderExitTable(data){
+  document.getElementById('exit-table').innerHTML=data.rows?.map(r=>{
+    const p=DV(r,0).length>55?DV(r,0).slice(0,55)+'…':DV(r,0);
+    const ex=parseInt(V(r,0)),pv=parseInt(V(r,1));
+    return `<tr><td>${p}</td><td>${fN(ex)}</td><td>${fN(pv)}</td><td>${pv?(ex/pv*100).toFixed(1)+'%':'—'}</td></tr>`;
+  }).join('')||'';
+}
+
+function renderCountryTable(data){
+  const mx=data.rows?.length?parseInt(V(data.rows[0],0)):1;
+  document.getElementById('country-table').innerHTML=data.rows?.map(r=>{
+    const b=Math.round(parseInt(V(r,0))/mx*100);
+    return `<tr><td>${DV(r,0)}</td><td>${fN(V(r,0))}</td><td>${fN(V(r,1))}</td><td>${(parseFloat(V(r,2))*100).toFixed(1)}%</td><td><div class="bar-w"><div class="mbar" style="width:${Math.max(b,2)}px;max-width:80px"></div></div></td></tr>`;
+  }).join('')||'';
+}
+
+function renderCityTable(data){
+  const mx=data.rows?.length?parseInt(V(data.rows[0],0)):1;
+  document.getElementById('city-table').innerHTML=data.rows?.map(r=>{
+    const b=Math.round(parseInt(V(r,0))/mx*100);
+    return `<tr><td>${DV(r,0)}</td><td>${fN(V(r,0))}</td><td>${fN(V(r,1))}</td><td><div class="bar-w"><div class="mbar" style="width:${Math.max(b,2)}px;max-width:80px"></div></div></td></tr>`;
+  }).join('')||'';
+}
+
+window.onload=function(){
+  document.getElementById('client-id-input').value=localStorage.getItem('ga4_cid')||CLIENT_ID;
+  checkCallback();
+};
+</script>
+</body>
+</html>
